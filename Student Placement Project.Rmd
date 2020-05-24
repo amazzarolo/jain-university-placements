@@ -1,0 +1,343 @@
+---
+title: "Student Placement Data"
+output: html_notebook
+---
+
+Read in libraries.
+```{r}
+library(tidyverse)
+library(visdat)
+library(ggcorrplot)
+library(waffle)
+library(extrafont)
+library(emojifont)
+library(extrafontdb)
+library(scales)
+library(ROCR)
+```
+
+Read in data and get a brief glance at it.
+```{r}
+placement_data <- read_csv("Placement_Data_Full_Class.csv")
+
+# Look at data types for each variable
+str(placement_data)
+
+glimpse(placement_data)
+```
+
+Change applicable data types.
+```{r}
+placement_data$gender <- as.factor(placement_data$gender)
+placement_data$ssc_b <- as.factor(placement_data$ssc_b)
+placement_data$hsc_b <- as.factor(placement_data$hsc_b)
+placement_data$hsc_s <- as.factor(placement_data$hsc_s)
+placement_data$degree_t <- as.factor(placement_data$degree_t)
+placement_data$workex <- as.factor(placement_data$workex)
+placement_data$specialisation <- as.factor(placement_data$specialisation)
+placement_data$status <- as.factor(placement_data$status)
+```
+
+### Exploratory Data Analysis
+#### Missing Values
+Check for any missing values and deal with them. Salary is the only variable that has missing values. My hypothesis is that those who were not placed didn't report a salary, so these were left blank. Instead, we can impute a 0 for these since those without a placement are earning a salary of 0.
+```{r}
+sum(is.na(placement_data))
+vis_miss(placement_data)
+```
+
+As we can see, all 67 missing values belong to the 67 students who did not secure a job placement. Using a simple for loop, I will now impute a 0 instead of NA's to allow for further analysis and calculations.
+```{r}
+placement_data %>%
+  filter(status == "Not Placed") %>%
+  select(status,salary)
+
+for (i in 1:dim(placement_data)[1]){
+  if(is.na(placement_data$salary[i])){
+    placement_data$salary[i] <- 0
+  }
+}
+
+# Check to make sure no more missing values
+sum(is.na(placement_data))
+```
+
+#### Variable Analysis
+Now for the fun part! Let's look more into some of the variables to see any potential pathways towards deeper insights.
+
+As we can see the gender distribution within the class leans towards a greater number of male students than female students. I chose to display this within a "waffle chart" because I read about them recently and really loved the ease of which they disseminate the information!
+```{r}
+# Try and figure out the glyph stuff...
+# font_import()
+# loadfonts()
+# fonts()[grep("Awesome", fonts())]
+# 
+# waffle(c(50, 30, 15, 5), rows = 5, use_glyph = "music", glyph_size = 6)
+
+waffle_parts <- c(`Female` = dim(filter(placement_data, gender == "F"))[1], `Male` = dim(filter(placement_data, gender == "M"))[1])
+
+waffle(parts = waffle_parts, rows = 12, reverse = F, xlab = "1 Square = 1 Student", title = "Gender Distribution Across MBA Program", colors = c("lightsalmon1", "cornflowerblue"), size = 1)
+```
+
+
+```{r}
+placement_data %>%
+  select(hsc_s)
+
+levels(placement_data$degree_t)
+
+waffle2_parts <- c(`Comm&Mgmt` = dim(filter(placement_data, degree_t == "Comm&Mgmt"))[1],`Sci&Tech` = dim(filter(placement_data, degree_t == "Sci&Tech"))[1],`Others` = dim(filter(placement_data, degree_t == "Others"))[1])
+
+waffle(parts = waffle2_parts, rows = 12, reverse = F, xlab = "1 Square = 1 Student", title = "Undergraduate Program Distribution Across MBA Program", colors = c("lightsalmon1", "cornflowerblue", "seagreen3"), size = 1)
+```
+
+
+
+
+```{r}
+ggplot(placement_data, aes(x = mba_p, y = salary, col = status)) +
+  geom_point() +
+  ggtitle("Graduate Salary by MBA Percentage Performance", 
+          subtitle = "Student performance does not appear to have a strong relationship with salary") +
+  scale_y_continuous(labels = comma) +
+  xlab("MBA Grade Percentage") +
+  ylab("Salary") +
+  theme(panel.grid.major = element_blank(),
+        panel.background = element_rect(fill="gray94", colour=NA)) +
+  geom_smooth(se = F)
+```
+
+
+```{r}
+ggplot(placement_data, aes(x = mba_p, fill = gender)) +
+  geom_density( col = "black", alpha = 0.6) +
+  ggtitle("MBA Grade Percentage by Gender", subtitle = "Female students clearly exhibit higher overall grade percentages") +
+  xlab("MBA Grade Percentage") + 
+  ylab("Density") +
+  theme(panel.grid.major = element_blank(),
+        panel.background = element_rect(fill="gray94", colour=NA))
+```
+
+
+```{r}
+ggplot(placement_data, aes(x = mba_p, y = salary, col = gender)) +
+  geom_point(alpha = 0.9) +
+  ggtitle("Graduate Salary by MBA Percentage Performance and Gender", 
+          subtitle = "Student performance does not appear to have a strong relationship with salary") +
+  scale_y_continuous(labels = comma) +
+  xlab("MBA Grade Percentage") +
+  ylab("Salary") +
+  theme(panel.grid.major = element_blank(),
+        panel.background = element_rect(fill="gray94", colour=NA))
+```
+
+Is the employability test a good predictor of test placement possibility and salary? This visualization begs to differ. Those that scored well on the employment test did not display a 
+```{r}
+ggplot(placement_data, aes(x = etest_p, y = salary, col = status)) +
+  geom_point(alpha = 0.9) +
+  ggtitle("Graduate Salary by Employement Test and Status", 
+          subtitle = "Employment test performance does not appear to have a strong relationship with salary or placement chances") +
+  scale_y_continuous(labels = comma) +
+  xlab("Employment Test Percentage") +
+  ylab("Salary") +
+  theme(panel.grid.major = element_blank(),
+        panel.background = element_rect(fill="gray94", colour=NA)) +
+  geom_smooth(se = F)
+```
+
+Did women fair better than men on the employment test?
+If yes, why are they not getting paid more? We already know they perform better from a GPA standpoint. This visual shows men do in fact perform better on the employment test.
+```{r}
+ggplot(placement_data, aes(x = etest_p, fill = gender)) +
+  geom_density( col = "black", alpha = 0.6) +
+  ggtitle("Employment Test Percentage by Gender", subtitle = "Male students exhibit higher employment test percentages") +
+  xlab("Employment Test Percentage") + 
+  ylab("Density") +
+  theme(panel.grid.major = element_blank(),
+        panel.background = element_rect(fill="gray94", colour=NA))
+```
+
+Specialization effect on salary
+```{r}
+ggplot(placement_data, aes(x = specialisation, y = salary, fill = specialisation)) +
+  geom_boxplot(alpha = 0.8) +
+  ggtitle("Salary by Specialization", subtitle = "Marketing and Finance specializations exhibited a higher and tighter salary distribution") +
+  xlab("Specialization") + 
+  ylab("Salary") +
+  theme(panel.grid.major = element_blank(),
+        panel.background = element_rect(fill="gray94", colour=NA)) +
+  scale_y_continuous(labels = comma)
+```
+
+
+
+
+
+
+Analysis on Work Experience
+```{r}
+ggplot(placement_data, aes(x = salary, fill = workex)) +
+  geom_histogram(bins = 15) +
+  scale_x_continuous(labels = comma) +
+  ggtitle("Graduate Salaries by Work Experience", subtitle = "There seems to be an equal amount of salaries with no/some work experience") +
+  xlab("Salary") +
+  ylab("Count") +
+  theme(panel.grid.major = element_blank(),
+        panel.background = element_rect(fill="gray94", colour=NA))
+```
+
+
+
+
+
+
+
+## Model Building
+### Logistic Regresion Analysis
+By utilizing a logistic regression, we can see which factors have the greatest impact on placement chances. 
+```{r}
+num_samples <- dim(placement_data)[1]
+sampling.rate <- 0.7
+training <- sample(1:num_samples, sampling.rate * num_samples)
+trainingSet <- placement_data[training, ]
+testing <- setdiff(1:num_samples,training)
+testingSet <- placement_data[testing, ]
+```
+
+
+```{r}
+glm_fit1 <- glm(status ~. - salary, data = trainingSet, family = "binomial")
+summary(glm_fit1)
+```
+
+```{r}
+predictions_glm1 <- predict(glm_fit1, testingSet, type = "response")
+predictions_glm1 <- ifelse(predictions_glm1 >= 0.5, 1, 0)
+anova(glm_fit1, test = "Chisq")
+```
+
+Have to create a new variable to test against the predictions since our outcome is coded in as a 1 or 2 factor. Could also change the initial variable to binary (0,1).
+```{r}
+testingSet$status_number <- NA
+for (i in 1:dim(testingSet)[1]){
+  if(testingSet$status[i] == "Placed"){
+    testingSet$status_number[i] <- 1
+  } else {
+    testingSet$status_number[i] <- 0
+  }
+}
+misclassification_rate <- mean(predictions_glm1 != testingSet$status_number)
+print(paste("Accuracy:",1-misclassification_rate))
+```
+
+Plot ROC curve and find the AUC.
+```{r}
+predictions_ROC <- prediction(predictions_glm1, testingSet$status_number)
+prf <- performance(predictions_ROC, measure = "tpr", x.measure = "fpr")
+plot(prf)
+
+auc <- performance(predictions_ROC, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+```
+
+
+### Linear Regresion Analysis
+By utilizing a linear regression, we can see which factors have the greatest impact on graduate salary.
+```{r}
+# Create a training and testing set
+num_samples <- dim(placement_data)[1]
+sampling.rate <- 0.7
+training <- sample(1:num_samples, sampling.rate * num_samples)
+trainingSet <- placement_data[training, ]
+testing <- setdiff(1:num_samples,training)
+testingSet <- placement_data[testing, ]
+```
+
+
+```{r}
+lm_fit1 <- lm(salary ~. - status - sl_no, data = trainingSet)
+summary(lm_fit1)
+```
+
+Make predictions based on this initial model.
+```{r}
+predictions_fit1 <- predict(lm_fit1, testingSet)
+error <- predictions_fit1 - testingSet$salary
+rmse <- sqrt(mean(error^2))
+rmse
+```
+
+Remove hsc_s
+```{r}
+lm_fit2 <- lm(salary ~. - status - sl_no - hsc_s, data = trainingSet)
+summary(lm_fit2)
+```
+
+```{r}
+predictions_fit2 <- predict(lm_fit2, testingSet)
+error2 <- predictions_fit2 - testingSet$salary
+rmse2 <- sqrt(mean(error2^2))
+rmse2
+```
+
+
+```{r}
+lm_fit3 <- lm(salary ~. - status - sl_no - hsc_s - degree_t, data = trainingSet)
+summary(lm_fit3)
+predictions_fit3 <- predict(lm_fit3, testingSet)
+error3 <- predictions_fit3 - testingSet$salary
+rmse3 <- sqrt(mean(error3^2))
+rmse3
+```
+
+
+```{r}
+lm_fit4 <- lm(salary ~. - status - sl_no - hsc_s - degree_t - ssc_b, data = trainingSet)
+summary(lm_fit4)
+predictions_fit4 <- predict(lm_fit4, testingSet)
+error4 <- predictions_fit4 - testingSet$salary
+rmse4 <- sqrt(mean(error4^2))
+rmse4
+```
+
+Here we see employment test is very insignificant in terms of predicting salary.
+```{r}
+lm_fit5 <- lm(salary ~. - status - sl_no - hsc_s - degree_t - ssc_b - hsc_b, data = trainingSet)
+summary(lm_fit5)
+predictions_fit5 <- predict(lm_fit5, testingSet)
+error5 <- predictions_fit5 - testingSet$salary
+rmse5 <- sqrt(mean(error5^2))
+rmse5
+```
+
+```{r}
+lm_fit6 <- lm(salary ~. - status - sl_no - hsc_s - degree_t - ssc_b - hsc_b - etest_p, data = trainingSet)
+summary(lm_fit6)
+predictions_fit6 <- predict(lm_fit6, testingSet)
+error6 <- predictions_fit6 - testingSet$salary
+rmse6 <- sqrt(mean(error6^2))
+rmse6
+```
+
+MBA percentage still not showing much signifiance.
+```{r}
+lm_fit7 <- lm(salary ~. - status - sl_no - hsc_s - degree_t - ssc_b - hsc_b - etest_p - degree_p, data = trainingSet)
+summary(lm_fit7)
+predictions_fit7 <- predict(lm_fit7, testingSet)
+error7 <- predictions_fit7 - testingSet$salary
+rmse7 <- sqrt(mean(error7^2))
+rmse7 
+```
+
+```{r}
+lm_fit8 <- lm(salary ~. - status - sl_no - hsc_s - degree_t - ssc_b - hsc_b - etest_p - degree_p - mba_p, data = trainingSet)
+summary(lm_fit8)
+predictions_fit8 <- predict(lm_fit8, testingSet)
+error8 <- predictions_fit8 - testingSet$salary
+rmse8 <- sqrt(mean(error8^2))
+rmse8 
+```
+
+
+MAKE SHINY APP FOR LM and LOGIT MODEL PREDICTIONS.
