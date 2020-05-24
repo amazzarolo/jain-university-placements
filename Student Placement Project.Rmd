@@ -4,7 +4,7 @@ output: html_notebook
 ---
 
 Read in libraries.
-```{r}
+```{r, echo=FALSE}
 library(tidyverse)
 library(visdat)
 library(ggcorrplot)
@@ -13,6 +13,7 @@ library(extrafont)
 library(emojifont)
 library(extrafontdb)
 library(scales)
+library(shiny)
 library(ROCR)
 ```
 
@@ -196,16 +197,14 @@ ggplot(placement_data, aes(x = salary, fill = workex)) +
 ### Logistic Regresion Analysis
 By utilizing a logistic regression, we can see which factors have the greatest impact on placement chances. 
 ```{r}
+set.seed(123)
 num_samples <- dim(placement_data)[1]
 sampling.rate <- 0.7
 training <- sample(1:num_samples, sampling.rate * num_samples)
 trainingSet <- placement_data[training, ]
 testing <- setdiff(1:num_samples,training)
 testingSet <- placement_data[testing, ]
-```
 
-
-```{r}
 glm_fit1 <- glm(status ~. - salary, data = trainingSet, family = "binomial")
 summary(glm_fit1)
 ```
@@ -246,16 +245,14 @@ auc
 By utilizing a linear regression, we can see which factors have the greatest impact on graduate salary.
 ```{r}
 # Create a training and testing set
+set.seed(123)
 num_samples <- dim(placement_data)[1]
 sampling.rate <- 0.7
 training <- sample(1:num_samples, sampling.rate * num_samples)
 trainingSet <- placement_data[training, ]
 testing <- setdiff(1:num_samples,training)
 testingSet <- placement_data[testing, ]
-```
 
-
-```{r}
 lm_fit1 <- lm(salary ~. - status - sl_no, data = trainingSet)
 summary(lm_fit1)
 ```
@@ -320,9 +317,9 @@ rmse6 <- sqrt(mean(error6^2))
 rmse6
 ```
 
-MBA percentage still not showing much signifiance.
+Specialization not showing signifiance, removed.
 ```{r}
-lm_fit7 <- lm(salary ~. - status - sl_no - hsc_s - degree_t - ssc_b - hsc_b - etest_p - degree_p, data = trainingSet)
+lm_fit7 <- lm(salary ~. - status - sl_no - hsc_s - degree_t - ssc_b - hsc_b - etest_p - specialisation, data = trainingSet)
 summary(lm_fit7)
 predictions_fit7 <- predict(lm_fit7, testingSet)
 error7 <- predictions_fit7 - testingSet$salary
@@ -330,8 +327,9 @@ rmse7 <- sqrt(mean(error7^2))
 rmse7 
 ```
 
+MBA percentage still not showing much signifiance.
 ```{r}
-lm_fit8 <- lm(salary ~. - status - sl_no - hsc_s - degree_t - ssc_b - hsc_b - etest_p - degree_p - mba_p, data = trainingSet)
+lm_fit8 <- lm(salary ~. - status - sl_no - hsc_s - degree_t - ssc_b - hsc_b - etest_p - specialisation - mba_p, data = trainingSet)
 summary(lm_fit8)
 predictions_fit8 <- predict(lm_fit8, testingSet)
 error8 <- predictions_fit8 - testingSet$salary
@@ -339,5 +337,5 @@ rmse8 <- sqrt(mean(error8^2))
 rmse8 
 ```
 
+# As a final result, it appears as though the most important factors in higher salary are your academic performance, whether you had previous work experience, and whether or not you are male, with the latter leading to a ~55000 increase in salary. This would be interesting to investigate further to understand why males are given such a higher wage on average, and could lend itself to gender wage gap conversations!
 
-MAKE SHINY APP FOR LM and LOGIT MODEL PREDICTIONS.
