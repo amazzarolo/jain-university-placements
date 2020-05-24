@@ -7,11 +7,7 @@ Read in libraries.
 ```{r, echo=FALSE}
 library(tidyverse)
 library(visdat)
-library(ggcorrplot)
 library(waffle)
-library(extrafont)
-library(emojifont)
-library(extrafontdb)
 library(scales)
 library(shiny)
 library(ROCR)
